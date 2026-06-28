@@ -75,7 +75,11 @@ public static class Program
             .ReadFrom.Configuration(configuration)
             .Enrich.FromLogContext()
             .WriteTo.Console()
-            .WriteTo.File("logs/vimes_sample-.txt", rollingInterval: RollingInterval.Day)
+            .WriteTo.File(
+                Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    ".config", "vimes-sign", "logs", "vimes_sample-.txt"),
+                rollingInterval: RollingInterval.Day)
             .CreateLogger();
 
         Host = Microsoft.Extensions.Hosting.Host.CreateDefaultBuilder()
@@ -280,7 +284,16 @@ public static class Program
 
 public class DesktopSignEnvironment : Core.Common.Abstractions.ISignEnvironment
 {
-    public string WebRootPath { get; set; } = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-    public string ContentRootPath { get; set; } = Directory.GetCurrentDirectory();
+    private static string GetDataDirectory()
+    {
+        // Use ~/.config/vimes-sign/ as writable data directory on macOS
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var dataDir = Path.Combine(home, ".config", "vimes-sign");
+        Directory.CreateDirectory(dataDir);
+        return dataDir;
+    }
+
+    public string WebRootPath { get; set; } = Path.Combine(GetDataDirectory(), "wwwroot");
+    public string ContentRootPath { get; set; } = GetDataDirectory();
     public string EnvironmentName { get; set; } = "Development";
 }
