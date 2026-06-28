@@ -36,9 +36,11 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-          else
+          elif [[ "${GITHUB_REF_NAME}" == sign-app-v* ]]; then
             TAG="${GITHUB_REF_NAME}"
             echo "VERSION=${TAG#sign-app-}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=v0.0.0-dev" >> $GITHUB_OUTPUT
           fi
 
       - uses: actions/setup-dotnet@v4
