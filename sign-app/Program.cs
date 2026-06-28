@@ -59,6 +59,16 @@ public static class Program
             .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
 
+        // Override with user-specific config if it exists (~/.config/vimes-sign/appsettings.json)
+        var userConfigDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".config", "vimes-sign");
+        var userConfigFile = Path.Combine(userConfigDir, "appsettings.json");
+        if (File.Exists(userConfigFile))
+        {
+            builder.AddJsonFile(userConfigFile, optional: true, reloadOnChange: true);
+        }
+
         var configuration = builder.Build();
 
         Log.Logger = new LoggerConfiguration()

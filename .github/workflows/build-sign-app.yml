@@ -75,8 +75,7 @@ jobs:
           # Copy published output into MacOS folder
           cp -R publish/app/* "$APP_DIR/Contents/MacOS/"
 
-          # Copy appsettings template
-          cp ${{ env.PROJECT_DIR }}/appsettings.example.json "$APP_DIR/Contents/Resources/appsettings.json"
+          # appsettings.json is already included in the publish output from dotnet publish
 
           # Create Info.plist
           cat > "$APP_DIR/Contents/Info.plist" << EOF
