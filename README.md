@@ -144,46 +144,6 @@ Cả hai workflow đều chạy **build-only** trên push `main` (không ký, kh
 ./scripts/release-sign-app.sh 1.0.0
 ```
 
-### Cấu hình GitHub Secrets
-
-Vào **Settings → Secrets and variables → Actions** của repo, thêm các secret sau:
-
-| Secret | Mô tả | Cách lấy |
-|--------|-------|----------|
-| `DEV_ID_APP_P12` | Certificate "Developer ID Application" dạng Base64 | Xem bên dưới |
-| `DEV_ID_APP_PASSWORD` | Mật khẩu của file `.p12` Application | Đặt khi export từ Keychain |
-| `DEV_ID_INSTALLER_P12` | Certificate "Developer ID Installer" dạng Base64 | Xem bên dưới |
-| `DEV_ID_INSTALLER_PASSWORD` | Mật khẩu của file `.p12` Installer | Đặt khi export từ Keychain |
-| `DEV_ID_APP_NAME` | Tên identity ký code | `"Developer ID Application: TÊN (TEAMID)"` |
-| `DEV_ID_INSTALLER_NAME` | Tên identity ký installer | `"Developer ID Installer: TÊN (TEAMID)"` |
-| `KEYCHAIN_PASSWORD` | Chuỗi bất kỳ (cho keychain tạm trên CI) | Tạo passphrase bất kỳ |
-| `APPLE_ID` | Email Apple ID (cho notarization) | Tài khoản Apple Developer |
-| `APPLE_ID_PASSWORD` | App-specific password | appleid.apple.com → Bảo mật → Mật khẩu ứng dụng |
-| `APPLE_TEAM_ID` | Team ID 10 ký tự | developer.apple.com → Membership |
-
-### Cách export certificate sang Base64
-
-```bash
-# 1. Export từ Keychain Access thành file .p12 (đặt mật khẩu mạnh)
-
-# 2. Encode Base64 để dán vào GitHub Secrets:
-base64 -i DeveloperIdApplication.p12 | pbcopy
-# Dán vào secret DEV_ID_APP_P12
-
-base64 -i DeveloperIdInstaller.p12 | pbcopy
-# Dán vào secret DEV_ID_INSTALLER_P12
-```
-
-### Cách tìm tên signing identity
-
-```bash
-security find-identity -v -p codesigning
-# Ví dụ: "Developer ID Application: VIETNAM MEDICAL SOFTWARE JSC (9347BZ7DQR)"
-
-security find-identity -v -p basic
-# Tìm dòng: "Developer ID Installer: VIETNAM MEDICAL SOFTWARE JSC (9347BZ7DQR)"
-```
-
 ---
 
 ## Cấu trúc dự án
