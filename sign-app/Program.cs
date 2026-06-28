@@ -55,19 +55,27 @@ public static class Program
             return null;
         };
 
-        var builder = new ConfigurationBuilder()
-            .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
-
-        // Override with user-specific config if it exists (~/.config/vimes-sign/appsettings.json)
+        // User config directory: ~/.config/vimes-sign/
         var userConfigDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             ".config", "vimes-sign");
         var userConfigFile = Path.Combine(userConfigDir, "appsettings.json");
-        if (File.Exists(userConfigFile))
+
+        // Auto-copy bundled appsettings.json on first run if user config doesn't exist
+        if (!File.Exists(userConfigFile))
         {
-            builder.AddJsonFile(userConfigFile, optional: true, reloadOnChange: true);
+            Directory.CreateDirectory(userConfigDir);
+            var bundledConfig = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "appsettings.json");
+            if (File.Exists(bundledConfig))
+            {
+                File.Copy(bundledConfig, userConfigFile);
+            }
         }
+
+        var builder = new ConfigurationBuilder()
+            .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+            .AddJsonFile(userConfigFile, optional: true, reloadOnChange: true);
 
         var configuration = builder.Build();
 
