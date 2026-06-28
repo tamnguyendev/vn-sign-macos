@@ -339,13 +339,11 @@ public partial class MainWindow : Window
                          || selectedMerchant.Equals("LOCAL", StringComparison.OrdinalIgnoreCase)
                          || selectedMerchant.Equals("SELF", StringComparison.OrdinalIgnoreCase);
 
-        // Disable username/password fields for local/USB merchants
+        // Disable username field for local/USB merchants (password/PIN still needed for USB)
         txtUserName.IsEnabled = !isLocalOrUsb;
-        txtPassword.IsEnabled = !isLocalOrUsb;
         if (isLocalOrUsb)
         {
             txtUserName.Text = "";
-            txtPassword.Text = "";
         }
 
         if (selectedMerchant.Equals("USB", StringComparison.OrdinalIgnoreCase))
