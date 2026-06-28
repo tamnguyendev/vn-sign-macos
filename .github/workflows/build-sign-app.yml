@@ -145,10 +145,12 @@ jobs:
         run: |
           APP_DIR="publish/${{ env.APP_NAME }}.app"
 
-          # Deep sign the entire .app bundle (covers dylibs, dlls, executables)
+          # Deep sign the entire .app bundle with entitlements
+          # Entitlements required for .NET CoreCLR JIT (allow-jit, unsigned-executable-memory)
           codesign --force --deep --options runtime \
             --sign "$DEV_ID_APP_NAME" \
             --timestamp \
+            --entitlements ${{ env.PROJECT_DIR }}/entitlements.plist \
             "$APP_DIR"
 
           codesign -vvv "$APP_DIR"
