@@ -1,0 +1,42 @@
+# ── macOS ────────────────────────────────────────────────────────────────────
+.DS_Store
+*.swp
+*.swo
+
+# ── Swift / Xcode ────────────────────────────────────────────────────────────
+.build/
+.swiftpm/
+xcuserdata/
+DerivedData/
+*.xcodeproj/xcuserdata/
+
+# ── .NET ─────────────────────────────────────────────────────────────────────
+bin/
+obj/
+publish/
+*.user
+*.suo
+
+# ── Build artifacts / dist ───────────────────────────────────────────────────
+usb-token-agent/dist/
+sign-app/bin/
+sign-app/obj/
+
+# ── Secrets / certs (never commit) ──────────────────────────────────────────
+*.p12
+*.pfx
+*.cer
+*.pem
+*.key
+keys/
+
+# ── Sensitive config (use .example.json as template) ────────────────────────
+usb-token-agent/Resources/appsettings.json
+
+# ── IDE ──────────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.code-workspace
+
+# ── NuGet local packages ────────────────────────────────────────────────────
+local-packages/
