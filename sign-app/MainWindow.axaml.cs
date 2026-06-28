@@ -369,7 +369,7 @@ public partial class MainWindow : Window
             btnLogin.IsEnabled = false;
 
             // Wait for agent to start listening (it needs time to bind to port)
-            int maxRetries = 10;
+            int maxRetries = 30;
             for (int i = 0; i < maxRetries; i++)
             {
                 await Task.Delay(500);
@@ -383,7 +383,7 @@ public partial class MainWindow : Window
                 {
                     if (i == maxRetries - 1)
                     {
-                        LogError("[USB] Agent not responding on port 9999 after 5s. Is the USB token plugged in?");
+                        LogError("[USB] Agent not responding on port 9999 after 15s. Is the USB token plugged in?");
                         return;
                     }
                 }
