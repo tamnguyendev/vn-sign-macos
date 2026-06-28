@@ -1,4 +1,4 @@
-name: Build macOS PKG
+name: Build UsbTokenAgent (macOS PKG)
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
       - 'v*.*.*'
     paths:
       - 'usb-token-agent/**'
-      - '.github/workflows/build-pkg.yml'
+      - '.github/workflows/build-usb-token-agent.yml'
   workflow_dispatch:
     inputs:
       version:
