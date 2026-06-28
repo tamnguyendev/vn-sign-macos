@@ -145,25 +145,13 @@ jobs:
         run: |
           APP_DIR="publish/${{ env.APP_NAME }}.app"
 
-          # Sign all dylibs and executables inside-out
-          find "$APP_DIR" -name "*.dylib" -exec \
-            codesign --force --options runtime \
-              --sign "$DEV_ID_APP_NAME" \
-              --timestamp {} \;
-
-          # Sign the main executable
-          codesign --force --options runtime \
-            --sign "$DEV_ID_APP_NAME" \
-            --timestamp \
-            "$APP_DIR/Contents/MacOS/VimesSignSample"
-
-          # Sign the whole bundle
-          codesign --force --options runtime \
+          # Deep sign the entire .app bundle (covers dylibs, dlls, executables)
+          codesign --force --deep --options runtime \
             --sign "$DEV_ID_APP_NAME" \
             --timestamp \
             "$APP_DIR"
 
-          codesign --verify --deep --strict "$APP_DIR"
+          codesign -vvv "$APP_DIR"
 
       # ── Build .pkg installer ───────────────────────────────────────────────
       - name: Build .pkg installer
