@@ -326,7 +326,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void cboMerchant_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    private async void cboMerchant_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (cboMerchant.SelectedItem == null) return;
         string selectedMerchant = cboMerchant.SelectedItem.ToString()!;
@@ -335,13 +335,72 @@ public partial class MainWindow : Window
         lblSignAlgorithm.IsVisible = isBcy;
         cboSignAlgorithm.IsVisible = isBcy;
 
+        bool isLocalOrUsb = selectedMerchant.Equals("USB", StringComparison.OrdinalIgnoreCase)
+                         || selectedMerchant.Equals("LOCAL", StringComparison.OrdinalIgnoreCase)
+                         || selectedMerchant.Equals("SELF", StringComparison.OrdinalIgnoreCase);
+
+        // Disable username/password fields for local/USB merchants
+        txtUserName.IsEnabled = !isLocalOrUsb;
+        txtPassword.IsEnabled = !isLocalOrUsb;
+        if (isLocalOrUsb)
+        {
+            txtUserName.Text = "";
+            txtPassword.Text = "";
+        }
+
         if (selectedMerchant.Equals("USB", StringComparison.OrdinalIgnoreCase))
         {
             EnsureAgentRunning();
+            // Auto-login and get certificates for USB
+            await AutoLoginUsb();
         }
         else
         {
             StopAgent();
+        }
+    }
+
+    private async Task AutoLoginUsb()
+    {
+        try
+        {
+            string merchantId = "USB";
+            LogSystem($"[USB] Auto-connecting to USB Token Agent...");
+            btnLogin.IsEnabled = false;
+
+            var result = await _signClient.LoginAsync("", "", merchantId, "", "");
+
+            if (result.Success)
+            {
+                _bearerToken = result.BearerToken;
+                _activeUserName = string.IsNullOrWhiteSpace(result.UserName) ? "" : result.UserName;
+                LogSuccess("[USB] Connected. Retrieving certificates from token...");
+
+                if (!string.IsNullOrWhiteSpace(_activeUserName))
+                    LogSystem($"[USB] Token identity: {_activeUserName}");
+
+                lblSessionStatus.Text = $"Active Session: {_activeUserName} (USB)";
+                lblSessionStatus.Foreground = Avalonia.Media.Brushes.Green;
+                panelStatusDot.Fill = Avalonia.Media.Brushes.Green;
+
+                var certs = await _signClient.GetCertificatesAsync(_activeUserName, _bearerToken ?? "", merchantId: merchantId);
+                PopulateCertificatesControls(certs, _activeUserName, merchantId);
+            }
+            else
+            {
+                LogError($"[USB] Auto-login failed: {result.ErrorMessage}");
+                lblSessionStatus.Text = "Status: USB Connection Failed";
+                lblSessionStatus.Foreground = Avalonia.Media.Brushes.Red;
+                panelStatusDot.Fill = Avalonia.Media.Brushes.Red;
+            }
+        }
+        catch (Exception ex)
+        {
+            LogError($"[USB] Error: {ex.Message}");
+        }
+        finally
+        {
+            btnLogin.IsEnabled = true;
         }
     }
     #endregion
