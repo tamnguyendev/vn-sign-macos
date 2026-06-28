@@ -326,7 +326,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void cboMerchant_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    private void cboMerchant_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (cboMerchant.SelectedItem == null) return;
         string selectedMerchant = cboMerchant.SelectedItem.ToString()!;
@@ -350,95 +350,11 @@ public partial class MainWindow : Window
 
         if (selectedMerchant.Equals("USB", StringComparison.OrdinalIgnoreCase))
         {
-            // Auto-login and get certificates for USB
-            await AutoLoginUsb();
+            EnsureAgentRunning();
         }
         else
         {
             StopAgent();
-        }
-    }
-
-    private async Task AutoLoginUsb()
-    {
-        try
-        {
-            string merchantId = "USB";
-            int port = _appSettings?.UsbSetting?.UsbAgentPort ?? 9999;
-            LogSystem($"[USB] Auto-connecting to USB Token Agent...");
-            btnLogin.IsEnabled = false;
-
-            // Check if agent is already running on the port
-            bool agentReady = false;
-            try
-            {
-                using var tcp = new System.Net.Sockets.TcpClient();
-                await tcp.ConnectAsync("127.0.0.1", port);
-                agentReady = true;
-                LogSystem("[USB] Agent already running.");
-            }
-            catch { }
-
-            // If not running, start it and wait
-            if (!agentReady)
-            {
-                EnsureAgentRunning();
-
-                int maxRetries = 30;
-                for (int i = 0; i < maxRetries; i++)
-                {
-                    await Task.Delay(500);
-                    try
-                    {
-                        using var tcp = new System.Net.Sockets.TcpClient();
-                        await tcp.ConnectAsync("127.0.0.1", port);
-                        agentReady = true;
-                        break;
-                    }
-                    catch
-                    {
-                        if (i == maxRetries - 1)
-                        {
-                            LogError($"[USB] Agent not responding on port {port} after 15s. Is the USB token plugged in?");
-                            return;
-                        }
-                    }
-                }
-            }
-
-            var result = await _signClient.LoginAsync("", "", merchantId, "", "");
-
-            if (result.Success)
-            {
-                _bearerToken = result.BearerToken;
-                _activeUserName = string.IsNullOrWhiteSpace(result.UserName) ? "" : result.UserName;
-                LogSuccess("[USB] Connected. Retrieving certificates from token...");
-
-                if (!string.IsNullOrWhiteSpace(_activeUserName))
-                    LogSystem($"[USB] Token identity: {_activeUserName}");
-
-                lblSessionStatus.Text = $"Active Session: {_activeUserName} (USB)";
-                lblSessionStatus.Foreground = Avalonia.Media.Brushes.Green;
-                panelStatusDot.Fill = Avalonia.Media.Brushes.Green;
-
-                var certs = await _signClient.GetCertificatesAsync(_activeUserName, _bearerToken ?? "", merchantId: merchantId);
-                PopulateCertificatesControls(certs, _activeUserName, merchantId);
-            }
-            else
-            {
-                LogError($"[USB] Auto-login failed: {result.ErrorMessage}");
-                lblSessionStatus.Text = "Status: USB Connection Failed";
-                lblSessionStatus.Foreground = Avalonia.Media.Brushes.Red;
-                panelStatusDot.Fill = Avalonia.Media.Brushes.Red;
-            }
-        }
-        catch (Exception ex)
-        {
-            LogError($"[USB] Error: {ex.Message}");
-        }
-        finally
-        {
-            btnLogin.IsEnabled = true;
         }
     }
     #endregion
