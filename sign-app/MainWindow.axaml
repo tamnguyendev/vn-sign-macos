@@ -162,7 +162,7 @@
                         <TextBox Name="txtPassword" PasswordChar="*" FontSize="11" Height="22" Padding="4,2"/>
                       </StackPanel>
                       <Button Grid.Row="1" Grid.Column="0" Name="btnLogin" Content="Đăng Nhập" Height="22" Padding="4,2" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Background="#2563EB" Foreground="White" Margin="0,1,4,0" Click="btnLogin_Click" FontSize="11"/>
-                      <Button Grid.Row="1" Grid.Column="1" Name="btnSyncCertificates" Content="Đồng Bộ" Height="22" Padding="4,2" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="4,1,0,0" Click="btnSyncCertificates_Click" FontSize="11"/>
+                      <Button Grid.Row="1" Grid.Column="1" Name="btnSyncCertificates" Content="Tải Chứng Thư Số" Height="22" Padding="4,2" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="4,1,0,0" Click="btnSyncCertificates_Click" FontSize="11"/>
                     </Grid>
                     <ComboBox Name="cboCerts" HorizontalAlignment="Stretch" Height="22" FontSize="11">
                       <!-- Populated in code -->
@@ -312,7 +312,7 @@
                         <TextBox Name="txtPasswordXml" PasswordChar="*" FontSize="11" Height="22" Padding="4,2"/>
                       </StackPanel>
                       <Button Grid.Row="1" Grid.Column="0" Name="btnLoginXml" Content="Đăng Nhập" Height="22" Padding="4,2" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Background="#2563EB" Foreground="White" Margin="0,1,4,0" Click="btnLoginXml_Click" FontSize="11"/>
-                      <Button Grid.Row="1" Grid.Column="1" Name="btnSyncCertificatesXml" Content="Đồng Bộ" Height="22" Padding="4,2" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="4,1,0,0" Click="btnSyncCertificatesXml_Click" FontSize="11"/>
+                      <Button Grid.Row="1" Grid.Column="1" Name="btnSyncCertificatesXml" Content="Tải Chứng Thư Số" Height="22" Padding="4,2" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="4,1,0,0" Click="btnSyncCertificatesXml_Click" FontSize="11"/>
                     </Grid>
                     <ComboBox Name="cboCertsXml" HorizontalAlignment="Stretch" Height="22" FontSize="11">
                       <!-- Populated in code -->
