@@ -200,6 +200,7 @@ jobs:
       # ── Notarize the .pkg ──────────────────────────────────────────────────
       - name: Notarize .pkg
         if: env.IS_RELEASE == 'true'
+        working-directory: usb-token-agent
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
