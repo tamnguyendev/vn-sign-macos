@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     tags:
-      - 'v*.*.*'
+      - 'usb-token-agent-v*.*.*'
     paths:
       - 'usb-token-agent/**'
       - '.github/workflows/build-usb-token-agent.yml'
@@ -24,7 +24,7 @@ jobs:
       APP_NAME: UsbTokenAgent
       BUNDLE_ID: com.vimes.usbtokenagent
       INSTALL_LOCATION: /Applications/UsbTokenAgent.app
-      IS_RELEASE: ${{ startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' }}
+      IS_RELEASE: ${{ startsWith(github.ref, 'refs/tags/usb-token-agent-v') || github.event_name == 'workflow_dispatch' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -34,8 +34,9 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-          elif [[ "${GITHUB_REF_NAME}" == v* ]]; then
-            echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          elif [[ "${GITHUB_REF_NAME}" == usb-token-agent-v* ]]; then
+            TAG="${GITHUB_REF_NAME}"
+            echo "VERSION=${TAG#usb-token-agent-}" >> $GITHUB_OUTPUT
           else
             echo "VERSION=v0.0.0-dev" >> $GITHUB_OUTPUT
           fi
