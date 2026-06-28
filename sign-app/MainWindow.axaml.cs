@@ -350,7 +350,6 @@ public partial class MainWindow : Window
 
         if (selectedMerchant.Equals("USB", StringComparison.OrdinalIgnoreCase))
         {
-            EnsureAgentRunning();
             // Auto-login and get certificates for USB
             await AutoLoginUsb();
         }
@@ -365,26 +364,44 @@ public partial class MainWindow : Window
         try
         {
             string merchantId = "USB";
+            int port = _appSettings?.UsbSetting?.UsbAgentPort ?? 9999;
             LogSystem($"[USB] Auto-connecting to USB Token Agent...");
             btnLogin.IsEnabled = false;
 
-            // Wait for agent to start listening (it needs time to bind to port)
-            int maxRetries = 30;
-            for (int i = 0; i < maxRetries; i++)
+            // Check if agent is already running on the port
+            bool agentReady = false;
+            try
             {
-                await Task.Delay(500);
-                try
+                using var tcp = new System.Net.Sockets.TcpClient();
+                await tcp.ConnectAsync("127.0.0.1", port);
+                agentReady = true;
+                LogSystem("[USB] Agent already running.");
+            }
+            catch { }
+
+            // If not running, start it and wait
+            if (!agentReady)
+            {
+                EnsureAgentRunning();
+
+                int maxRetries = 30;
+                for (int i = 0; i < maxRetries; i++)
                 {
-                    using var tcp = new System.Net.Sockets.TcpClient();
-                    await tcp.ConnectAsync("127.0.0.1", _appSettings?.UsbSetting?.UsbAgentPort ?? 9999);
-                    break; // connected
-                }
-                catch
-                {
-                    if (i == maxRetries - 1)
+                    await Task.Delay(500);
+                    try
                     {
-                        LogError("[USB] Agent not responding on port 9999 after 15s. Is the USB token plugged in?");
-                        return;
+                        using var tcp = new System.Net.Sockets.TcpClient();
+                        await tcp.ConnectAsync("127.0.0.1", port);
+                        agentReady = true;
+                        break;
+                    }
+                    catch
+                    {
+                        if (i == maxRetries - 1)
+                        {
+                            LogError($"[USB] Agent not responding on port {port} after 15s. Is the USB token plugged in?");
+                            return;
+                        }
                     }
                 }
             }
