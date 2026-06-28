@@ -1,0 +1,233 @@
+name: Build Sign App (macOS PKG)
+
+on:
+  push:
+    tags:
+      - 'sign-app-v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g. v1.0.0)'
+        required: true
+
+jobs:
+  build-sign-app:
+    runs-on: macos-14  # Apple Silicon (M1) runner
+    permissions:
+      contents: write
+
+    env:
+      APP_NAME: VimesSign
+      BUNDLE_ID: com.vimes.signsample
+      PROJECT_DIR: sign-app
+      INSTALL_LOCATION: /Applications/VimesSign.app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            TAG="${GITHUB_REF_NAME}"
+            echo "VERSION=${TAG#sign-app-}" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
+
+      # ── Restore NuGet packages ──────────────────────────────────────────────
+      - name: Restore NuGet packages
+        run: |
+          dotnet restore ${{ env.PROJECT_DIR }}/VimesSignSample.csproj
+
+      # ── Publish self-contained for macOS arm64 ─────────────────────────────
+      - name: Publish (self-contained, osx-arm64)
+        run: |
+          VER=$(echo "${{ steps.ver.outputs.VERSION }}" | sed 's/^v//')
+          dotnet publish ${{ env.PROJECT_DIR }}/VimesSignSample.csproj \
+            -c Release \
+            -r osx-arm64 \
+            --self-contained true \
+            -p:PublishSingleFile=false \
+            -p:Version=$VER \
+            -o publish/app
+
+      # ── Create .app bundle ─────────────────────────────────────────────────
+      - name: Create .app bundle
+        run: |
+          VERSION=$(echo "${{ steps.ver.outputs.VERSION }}" | sed 's/^v//')
+          APP_DIR="publish/${{ env.APP_NAME }}.app"
+          mkdir -p "$APP_DIR/Contents/MacOS"
+          mkdir -p "$APP_DIR/Contents/Resources"
+
+          # Copy published output into MacOS folder
+          cp -R publish/app/* "$APP_DIR/Contents/MacOS/"
+
+          # Copy appsettings template
+          cp ${{ env.PROJECT_DIR }}/appsettings.example.json "$APP_DIR/Contents/Resources/appsettings.json"
+
+          # Create Info.plist
+          cat > "$APP_DIR/Contents/Info.plist" << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleExecutable</key>
+            <string>VimesSignSample</string>
+            <key>CFBundleIdentifier</key>
+            <string>${{ env.BUNDLE_ID }}</string>
+            <key>CFBundleName</key>
+            <string>${{ env.APP_NAME }}</string>
+            <key>CFBundleVersion</key>
+            <string>${VERSION}</string>
+            <key>CFBundleShortVersionString</key>
+            <string>${VERSION}</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>LSMinimumSystemVersion</key>
+            <string>14.0</string>
+            <key>NSHighResolutionCapable</key>
+            <true/>
+          </dict>
+          </plist>
+          EOF
+
+      # ── Import signing certificates ────────────────────────────────────────
+      - name: Import Developer ID certificates
+        env:
+          DEV_ID_APP_P12: ${{ secrets.DEV_ID_APP_P12 }}
+          DEV_ID_APP_PASSWORD: ${{ secrets.DEV_ID_APP_PASSWORD }}
+          DEV_ID_INSTALLER_P12: ${{ secrets.DEV_ID_INSTALLER_P12 }}
+          DEV_ID_INSTALLER_PASSWORD: ${{ secrets.DEV_ID_INSTALLER_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/signing.keychain-db
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          echo "$DEV_ID_APP_P12" | base64 --decode > $RUNNER_TEMP/dev_id_app.p12
+          security import $RUNNER_TEMP/dev_id_app.p12 \
+            -k $KEYCHAIN_PATH \
+            -P "$DEV_ID_APP_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/productbuild
+
+          echo "$DEV_ID_INSTALLER_P12" | base64 --decode > $RUNNER_TEMP/dev_id_installer.p12
+          security import $RUNNER_TEMP/dev_id_installer.p12 \
+            -k $KEYCHAIN_PATH \
+            -P "$DEV_ID_INSTALLER_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/productbuild \
+            -T /usr/bin/pkgbuild
+
+          security list-keychains -d user -s $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+      # ── Codesign .app ──────────────────────────────────────────────────────
+      - name: Codesign .app bundle
+        env:
+          DEV_ID_APP_NAME: ${{ secrets.DEV_ID_APP_NAME }}
+        run: |
+          APP_DIR="publish/${{ env.APP_NAME }}.app"
+
+          # Sign all dylibs and executables inside-out
+          find "$APP_DIR" -name "*.dylib" -exec \
+            codesign --force --options runtime \
+              --sign "$DEV_ID_APP_NAME" \
+              --timestamp {} \;
+
+          # Sign the main executable
+          codesign --force --options runtime \
+            --sign "$DEV_ID_APP_NAME" \
+            --timestamp \
+            "$APP_DIR/Contents/MacOS/VimesSignSample"
+
+          # Sign the whole bundle
+          codesign --force --options runtime \
+            --sign "$DEV_ID_APP_NAME" \
+            --timestamp \
+            "$APP_DIR"
+
+          codesign --verify --deep --strict "$APP_DIR"
+
+      # ── Build .pkg installer ───────────────────────────────────────────────
+      - name: Build .pkg installer
+        env:
+          DEV_ID_INSTALLER_NAME: ${{ secrets.DEV_ID_INSTALLER_NAME }}
+        run: |
+          VERSION=$(echo "${{ steps.ver.outputs.VERSION }}" | sed 's/^v//')
+          APP_DIR="publish/${{ env.APP_NAME }}.app"
+          PKG_NAME="${{ env.APP_NAME }}-mac-arm64-${VERSION}.pkg"
+
+          pkgbuild \
+            --root "$APP_DIR" \
+            --identifier "${{ env.BUNDLE_ID }}" \
+            --version "$VERSION" \
+            --install-location "${{ env.INSTALL_LOCATION }}" \
+            publish/component.pkg
+
+          productbuild \
+            --package publish/component.pkg \
+            --sign "$DEV_ID_INSTALLER_NAME" \
+            --timestamp \
+            "publish/$PKG_NAME"
+
+          echo "PKG_PATH=publish/$PKG_NAME" >> $GITHUB_ENV
+          echo "PKG_NAME=$PKG_NAME" >> $GITHUB_ENV
+
+      # ── Notarize ───────────────────────────────────────────────────────────
+      - name: Notarize .pkg
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          xcrun notarytool submit "$PKG_PATH" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_ID_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait --timeout 600
+
+          xcrun stapler staple "$PKG_PATH"
+
+      # ── Upload & Release ───────────────────────────────────────────────────
+      - name: Upload PKG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PKG_NAME }}
+          path: ${{ env.PKG_PATH }}
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "${{ env.APP_NAME }} ${{ steps.ver.outputs.VERSION }}"
+          files: ${{ env.PKG_PATH }}
+          body: |
+            ## ${{ env.APP_NAME }} ${{ steps.ver.outputs.VERSION }}
+
+            macOS desktop signing application (Avalonia .NET 8, Apple Silicon).
+
+            ### Install
+            1. Download the `.pkg` file
+            2. Double-click to install (notarized, no Gatekeeper warnings)
+            3. App installs to `/Applications/VimesSign.app`
+
+            ### First Run
+            - Copy `appsettings.example.json` → edit with your merchant credentials
+            - Place in same directory as the app or in `~/.config/vimes-sign/`
+
+            ### Requirements
+            - macOS 14+ (Sonoma or later)
+            - Apple Silicon (arm64)
+
+      # ── Cleanup ────────────────────────────────────────────────────────────
+      - name: Cleanup keychain
+        if: always()
+        run: |
+          security delete-keychain $RUNNER_TEMP/signing.keychain-db 2>/dev/null || true

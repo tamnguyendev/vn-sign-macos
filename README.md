@@ -33,19 +33,38 @@ dotnet build
 
 ## GitHub Actions — Build & Sign macOS PKG
 
-The workflow `.github/workflows/build-pkg.yml` automates:
+Two workflows are available:
 
-1. Build the Swift binary (Release, arm64)
-2. Package as `.app` bundle with Info.plist
-3. Code-sign with Developer ID Application certificate
-4. Wrap in a `.pkg` installer, signed with Developer ID Installer
-5. Notarize with Apple (no Gatekeeper warnings)
-6. Create GitHub Release with the `.pkg` attached
+### 1. `build-pkg.yml` — UsbTokenAgent (Swift)
 
-### Trigger
+Builds the native Swift menu bar agent into a signed `.pkg`.
 
-- **Automatic**: Push a git tag matching `v*.*.*` (e.g. `v1.0.0`)
-- **Manual**: Run from GitHub Actions UI → "Run workflow" → enter version
+| Step | What it does |
+|------|--------------|
+| 1 | Build Swift binary (Release, arm64) |
+| 2 | Package as `.app` bundle with Info.plist |
+| 3 | Code-sign with Developer ID Application |
+| 4 | Wrap in `.pkg`, signed with Developer ID Installer |
+| 5 | Notarize with Apple |
+| 6 | Create GitHub Release |
+
+**Trigger**: Push tag `v*.*.*` (e.g. `v1.0.0`) or manual dispatch.
+
+### 2. `build-sign-app.yml` — VimesSign (.NET Avalonia)
+
+Builds the .NET 8 desktop signing app into a signed `.pkg`.
+
+| Step | What it does |
+|------|--------------|
+| 1 | Restore NuGet packages (from nuget.org) |
+| 2 | Publish self-contained (osx-arm64) |
+| 3 | Create `.app` bundle |
+| 4 | Code-sign with Developer ID Application |
+| 5 | Build `.pkg`, sign with Developer ID Installer |
+| 6 | Notarize with Apple |
+| 7 | Create GitHub Release |
+
+**Trigger**: Push tag `sign-app-v*.*.*` (e.g. `sign-app-v1.0.0`) or manual dispatch.
 
 ### Required GitHub Secrets
 
@@ -93,9 +112,13 @@ security find-identity -v -p basic
 ## Create a Release
 
 ```bash
-# Tag and push
+# UsbTokenAgent
 git tag v1.0.0
 git push origin v1.0.0
+
+# VimesSign (sign-app)
+git tag sign-app-v1.0.0
+git push origin sign-app-v1.0.0
 ```
 
 GitHub Actions will automatically build, sign, notarize, and publish the `.pkg`.
@@ -122,15 +145,22 @@ GitHub Actions will automatically build, sign, notarize, and publish the `.pkg`.
 ```
 vn-sign-macos/
 ├── .github/workflows/
-│   └── build-pkg.yml          # CI: build + sign + notarize + release
+│   ├── build-pkg.yml              # CI: usb-token-agent build + sign + notarize
+│   └── build-sign-app.yml        # CI: sign-app build + sign + notarize
 ├── usb-token-agent/
-│   ├── Package.swift          # Swift package manifest
-│   ├── Sources/               # Swift source files
-│   ├── CPkcs11/               # C bridge for PKCS#11 headers
-│   ├── Resources/             # AppIcon, appsettings, dylibs
-│   ├── entitlements.plist     # Hardened runtime entitlements
-│   └── dist/                  # (gitignored) local builds
-├── sign-app/                  # .NET Avalonia desktop UI
+│   ├── Package.swift              # Swift package manifest
+│   ├── Sources/                   # Swift source files
+│   ├── CPkcs11/                   # C bridge for PKCS#11 headers
+│   ├── Resources/                 # AppIcon, appsettings, dylibs
+│   ├── entitlements.plist         # Hardened runtime entitlements
+│   └── dist/                      # (gitignored) local builds
+├── sign-app/
+│   ├── VimesSignSample.csproj     # .NET 8 Avalonia project
+│   ├── Program.cs                 # App entry point + DI setup
+│   ├── appsettings.json           # Dev config (with placeholder creds)
+│   ├── appsettings.example.json   # Template for user setup
+│   └── wwwroot/                   # Runtime cert storage
+├── nuget.config                   # NuGet source config (nuget.org)
 ├── .gitignore
 └── README.md
 ```
