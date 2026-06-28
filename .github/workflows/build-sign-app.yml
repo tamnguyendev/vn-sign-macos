@@ -2,8 +2,13 @@ name: Build Sign App (macOS PKG)
 
 on:
   push:
+    branches: [main]
     tags:
       - 'sign-app-v*.*.*'
+    paths:
+      - 'sign-app/**'
+      - 'nuget.config'
+      - '.github/workflows/build-sign-app.yml'
   workflow_dispatch:
     inputs:
       version:
@@ -21,6 +26,7 @@ jobs:
       BUNDLE_ID: com.vimes.signsample
       PROJECT_DIR: sign-app
       INSTALL_LOCATION: /Applications/VimesSign.app
+      IS_RELEASE: ${{ startsWith(github.ref, 'refs/tags/sign-app-v') || github.event_name == 'workflow_dispatch' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -98,6 +104,7 @@ jobs:
 
       # ── Import signing certificates ────────────────────────────────────────
       - name: Import Developer ID certificates
+        if: env.IS_RELEASE == 'true'
         env:
           DEV_ID_APP_P12: ${{ secrets.DEV_ID_APP_P12 }}
           DEV_ID_APP_PASSWORD: ${{ secrets.DEV_ID_APP_PASSWORD }}
@@ -130,6 +137,7 @@ jobs:
 
       # ── Codesign .app ──────────────────────────────────────────────────────
       - name: Codesign .app bundle
+        if: env.IS_RELEASE == 'true'
         env:
           DEV_ID_APP_NAME: ${{ secrets.DEV_ID_APP_NAME }}
         run: |
@@ -157,6 +165,7 @@ jobs:
 
       # ── Build .pkg installer ───────────────────────────────────────────────
       - name: Build .pkg installer
+        if: env.IS_RELEASE == 'true'
         env:
           DEV_ID_INSTALLER_NAME: ${{ secrets.DEV_ID_INSTALLER_NAME }}
         run: |
@@ -182,6 +191,7 @@ jobs:
 
       # ── Notarize ───────────────────────────────────────────────────────────
       - name: Notarize .pkg
+        if: env.IS_RELEASE == 'true'
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
@@ -197,6 +207,7 @@ jobs:
 
       # ── Upload & Release ───────────────────────────────────────────────────
       - name: Upload PKG artifact
+        if: env.IS_RELEASE == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.PKG_NAME }}
@@ -228,6 +239,6 @@ jobs:
 
       # ── Cleanup ────────────────────────────────────────────────────────────
       - name: Cleanup keychain
-        if: always()
+        if: env.IS_RELEASE == 'true' && always()
         run: |
           security delete-keychain $RUNNER_TEMP/signing.keychain-db 2>/dev/null || true

@@ -2,8 +2,12 @@ name: Build macOS PKG
 
 on:
   push:
+    branches: [main]
     tags:
       - 'v*.*.*'
+    paths:
+      - 'usb-token-agent/**'
+      - '.github/workflows/build-pkg.yml'
   workflow_dispatch:
     inputs:
       version:
@@ -20,6 +24,7 @@ jobs:
       APP_NAME: UsbTokenAgent
       BUNDLE_ID: com.vimes.usbtokenagent
       INSTALL_LOCATION: /Applications/UsbTokenAgent.app
+      IS_RELEASE: ${{ startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -35,6 +40,7 @@ jobs:
 
       # ── Import signing certificates ────────────────────────────────────────
       - name: Import Developer ID certificates
+        if: env.IS_RELEASE == 'true'
         env:
           DEV_ID_APP_P12: ${{ secrets.DEV_ID_APP_P12 }}
           DEV_ID_APP_PASSWORD: ${{ secrets.DEV_ID_APP_PASSWORD }}
@@ -86,8 +92,12 @@ jobs:
           # Copy binary
           cp .build/release/UsbTokenAgent "$APP_DIR/Contents/MacOS/UsbTokenAgent"
 
-          # Copy resources
-          cp Resources/appsettings.json "$APP_DIR/Contents/Resources/"
+          # Copy resources (use example config on CI)
+          if [ -f "Resources/appsettings.json" ]; then
+            cp Resources/appsettings.json "$APP_DIR/Contents/Resources/"
+          else
+            cp Resources/appsettings.example.json "$APP_DIR/Contents/Resources/appsettings.json"
+          fi
           cp Resources/AppIcon.icns "$APP_DIR/Contents/Resources/"
           if [ -d "Resources/pkcs11" ]; then
             cp -R Resources/pkcs11 "$APP_DIR/Contents/Resources/"
@@ -126,6 +136,7 @@ jobs:
 
       # ── Code sign the .app ─────────────────────────────────────────────────
       - name: Codesign .app bundle
+        if: env.IS_RELEASE == 'true'
         working-directory: usb-token-agent
         env:
           DEV_ID_APP_NAME: ${{ secrets.DEV_ID_APP_NAME }}
@@ -150,6 +161,7 @@ jobs:
 
       # ── Build the .pkg installer ───────────────────────────────────────────
       - name: Build .pkg installer
+        if: env.IS_RELEASE == 'true'
         working-directory: usb-token-agent
         env:
           DEV_ID_INSTALLER_NAME: ${{ secrets.DEV_ID_INSTALLER_NAME }}
@@ -185,6 +197,7 @@ jobs:
 
       # ── Notarize the .pkg ──────────────────────────────────────────────────
       - name: Notarize .pkg
+        if: env.IS_RELEASE == 'true'
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
@@ -201,6 +214,7 @@ jobs:
 
       # ── Upload artifact ────────────────────────────────────────────────────
       - name: Upload PKG artifact
+        if: env.IS_RELEASE == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.PKG_NAME }}
@@ -230,6 +244,6 @@ jobs:
 
       # ── Cleanup ────────────────────────────────────────────────────────────
       - name: Cleanup keychain
-        if: always()
+        if: env.IS_RELEASE == 'true' && always()
         run: |
           security delete-keychain $RUNNER_TEMP/signing.keychain-db 2>/dev/null || true
