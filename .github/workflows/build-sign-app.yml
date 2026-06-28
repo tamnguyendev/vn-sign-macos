@@ -110,6 +110,9 @@ jobs:
 
           cp -R publish/sign-app/* "$APP_DIR/Contents/MacOS/"
 
+          # Copy app icon
+          cp sign-app/Resources/AppIcon.icns "$APP_DIR/Contents/Resources/"
+
           cat > "$APP_DIR/Contents/Info.plist" << EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -120,6 +123,7 @@ jobs:
             <key>CFBundleName</key><string>${{ env.SIGN_APP_NAME }}</string>
             <key>CFBundleVersion</key><string>${VERSION}</string>
             <key>CFBundleShortVersionString</key><string>${VERSION}</string>
+            <key>CFBundleIconFile</key><string>AppIcon</string>
             <key>CFBundlePackageType</key><string>APPL</string>
             <key>LSMinimumSystemVersion</key><string>14.0</string>
             <key>NSHighResolutionCapable</key><true/>
